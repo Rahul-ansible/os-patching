@@ -1,0 +1,14 @@
+---
+- name: playbook to deploy webservers
+  hosts: webservers
+  tasks:
+    - name: install httpd service
+      yum:
+        name: httpd
+        state: present
+
+    - name: start and enable service
+      service:
+        name: httpd
+        state: started
+        enable: yes
