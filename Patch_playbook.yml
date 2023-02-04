@@ -3,6 +3,7 @@
   hosts: all
   become: true
   strategy: free
+  ignore_errors: true
 
   tasks:
 # purpose of this task to check RHEL OS version and enable correct repo
