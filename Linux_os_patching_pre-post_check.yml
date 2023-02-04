@@ -1,6 +1,7 @@
 ---
 - name: Playbook for Linux OS patching Pre & Post check
   hosts: all
+  ignore_errors: true
   vars:
     path: /var/backup
     patch_before: "patch_jan_2023_before"
