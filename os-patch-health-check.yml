@@ -4,8 +4,8 @@
   ignore_errors: true
   vars:
     path: /var/backup
-    patch_before: "patch_jan_2023_before"
-    patch_after: "patch_jan_2023_after"
+    patch_before: "patch_feb_2023_before"
+    patch_after: "patch_feb_2023_after"
   become: true
 
   tasks:
@@ -58,6 +58,7 @@
         - name: Take a backup of /etc/hosts
           shell: "cp -p /etc/hosts /var/backup/{{ patch_after }}/"
           register: post_etc_hosts
+
         - name: Take a backe up of resolve.conf
           shell: "cp -p /etc/resolv.conf /var/backup/{{ patch_after }}/"
         - name: Take a backup of ifconfig
@@ -96,24 +97,44 @@
         
         - name: Compare hosts file before and after patching
           shell: "sdiff -s {{ path }}/{{ patch_before }}/hosts {{ path }}/{{ patch_after }}/hosts"
-          register: post_hosts
-        - debug: var=post_hosts.stdout
+          register: compare_hosts
+        - debug: var=compare_hosts.stdout
 
+        - name: Display message if the /etc/host file not matching
+          debug:
+            msg: "/etc/hosts file is not matching before and after OS-Patching, Kindly verify..."
+          when: compare_hosts.rc != 0
 
         - name: Compare fstab config before and after patching
           shell: "sdiff -s {{ path }}/{{ patch_before }}/fstab {{ path }}/{{ patch_after }}/fstab"
           register: compare_fstab
         - debug: var=compare_fstab.stdout
 
+        - name: "Display message if fstab config  not matching before and after pathing"
+          debug:
+            msg: "fstab file is not matching before and after OS-Patching, Kindly verify..."
+          when: compare_fstab.rc != 0
+
         - name: Compare netstat config before and after patching
           shell: "sdiff -s {{ path }}/{{ patch_before }}/netstat_nr_output.txt {{ path }}/{{ patch_after }}/netstat_nr_output.txt"
           register: compare_netstat
         - debug: var=compare_netstat.stdout
 
+        - name: Display message if the netstat  not matching
+          debug:
+            msg: "netstat info not matching before and after OS-Patching, Kindly verify..."
+          when: compare_netstat.rc != 0
+
         - name: Compare  resolve.conf before and after patching
           shell: "sdiff -s {{ path }}/{{ patch_before }}/resolv.conf {{ path }}/{{ patch_after }}/resolv.conf"
           register: compare_resolve
         - debug: var=compare_resolve.stdout
+
+        - name: Display message if the resolve.conf  not matching
+          debug:
+            msg: "resolve.conf info not matching before and after OS-Patching, Kindly verify..."
+          when: compare_resolve.rc != 0
+
 
       tags: 
         - POST_COMPARE
