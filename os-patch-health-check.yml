@@ -1,0 +1,124 @@
+---
+- name: Playbook for Linux OS patching Pre & Post check
+  hosts: all
+  ignore_errors: true
+  vars:
+    path: /var/backup
+    patch_before: "patch_jan_2023_before"
+    patch_after: "patch_jan_2023_after"
+  become: true
+
+  tasks:
+    - name: PRE-CHECK -- Backup of all the important config files before patching
+      block:
+        - name: Create backup directory on remote node.
+          shell: "mkdir -p /var/backup/{{ patch_before }}"
+          register: backup_dir
+        - name: Take a Backup of uname -a
+          shell: "uname -a > /var/backup/{{ patch_before }}/uname_a_output.txt"
+          args:
+            executable: /bin/bash
+          register: uname
+        - name: Take a backup of redhat-release 
+          shell: "cp -p /etc/redhat-release /var/backup/{{ patch_before }}/"
+          register: pre_os_release
+        - name: Take a backup of /etc/hosts
+          shell: "cp -p /etc/hosts /var/backup/{{ patch_before }}/"
+          register: pre_etc_hosts
+        - name: Take a backe up of resolve.conf
+          shell: "cp -p /etc/resolv.conf /var/backup/{{ patch_before }}/"
+        - name: Take a backup of ifconfig
+          shell: "ifconfig -a > /var/backup/{{ patch_before }}/ifconfig_a_output.txt"
+        - name: Take a backup of network routes (netstat -nr)
+          shell: "netstat -nr > /var/backup/{{ patch_before }}/netstat_nr_output.txt"
+        - name: Take a backup of df -h 
+          shell: "df -h > /var/backup/{{ patch_before }}/df_h_output.txt"
+        - name: Take a backup of installed packages (rpm -qa)
+          shell: "rpm -qa > /var/backup/{{ patch_before }}/rpm_qa_output.txt"
+        - name: Take a backup of running processes (ps -ef)
+          shell: "ps -ef > /var/backup/{{ patch_before }}/ps_ef_output.txt"
+        - name: Take a backup network procols (netstat -putna)
+          shell: "netstat -putna > /var/backup/{{ patch_before }}/netstat_putna_output.txt"
+        - name: Take a backeup of fstab file
+          shell: "cp -p /etc/fstab /var/backup/{{ patch_before }}/fstab"
+      tags: 
+        - PRE_BACKUP
+    
+    - name: POST-CHECK -- Backup of all the important config files After patching.
+      block:
+        - name: Create backup directory on remote node.
+          shell: "mkdir -p /var/backup/{{ patch_after }}"
+          register: psot_backup_dir
+        - name: Take a Backup of uname -a
+          shell: "uname -a > /var/backup/{{ patch_after }}/uname_a_output.txt"
+          register: psot_uname
+        - name: Take a backup of redhat-release 
+          shell: "cp -p /etc/redhat-release /var/backup/{{ patch_after }}/"
+          register: post_os_release
+        - name: Take a backup of /etc/hosts
+          shell: "cp -p /etc/hosts /var/backup/{{ patch_after }}/"
+          register: post_etc_hosts
+        - name: Take a backe up of resolve.conf
+          shell: "cp -p /etc/resolv.conf /var/backup/{{ patch_after }}/"
+        - name: Take a backup of ifconfig
+          shell: "ifconfig -a > /var/backup/{{ patch_after }}/ifconfig_a_output.txt"
+        - name: Take a backup of network routes (netstat -nr)
+          shell: "netstat -nr > /var/backup/{{ patch_after }}/netstat_nr_output.txt"
+        - name: Take a backup of df -h 
+          shell: "df -h > /var/backup/{{ patch_after }}/df_h_output.txt"
+        - name: Take a backup of installed packages (rpm -qa)
+          shell: "rpm -qa > /var/backup/{{ patch_after }}/rpm_qa_output.txt"
+        - name: Take a backup of running processes (ps -ef)
+          shell: "ps -ef > /var/backup/{{ patch_after }}/ps_ef_output.txt"
+        - name: Take a backup network procols (netstat -putna)
+          shell: "netstat -putna > /var/backup/{{ patch_after }}/netstat_putna_output.txt"
+        - name: Take a backeup of fstab file
+          shell: "cp -p /etc/fstab /var/backup/{{ patch_after }}/"
+      tags: 
+        - POST_BACKUP
+
+    - name: Validation of Pre & post config files
+      block:  
+        - name: Check Kernel version after Patching
+          shell: "uname -r"
+          register: post_kernel_v
+        - debug: var=post_kernel_v.stdout
+        
+        - name: Compare df-h before and after patching
+          shell: "sdiff -s {{ path }}/{{ patch_before }}/df_h_output.txt {{ path }}/{{ patch_after }}/df_h_output.txt"
+          register: compare_df_h
+        - debug: var=compare_df_h.stdout
+        
+        - name: Compare ifconfig before and after patching
+          shell: "sdiff -s {{ path }}/{{ patch_before }}/ifconfig_a_output.txt {{ path }}/{{ patch_after }}/ifconfig_a_output.txt"
+          register: compare_ifconfig
+        - debug: var=compare_ifconfig.stdout
+        
+        - name: Compare hosts file before and after patching
+          shell: "sdiff -s {{ path }}/{{ patch_before }}/hosts {{ path }}/{{ patch_after }}/hosts"
+          register: post_hosts
+        - debug: var=post_hosts.stdout
+
+
+        - name: Compare fstab config before and after patching
+          shell: "sdiff -s {{ path }}/{{ patch_before }}/fstab {{ path }}/{{ patch_after }}/fstab"
+          register: compare_fstab
+        - debug: var=compare_fstab.stdout
+
+        - name: Compare netstat config before and after patching
+          shell: "sdiff -s {{ path }}/{{ patch_before }}/netstat_nr_output.txt {{ path }}/{{ patch_after }}/netstat_nr_output.txt"
+          register: compare_netstat
+        - debug: var=compare_netstat.stdout
+
+        - name: Compare  resolve.conf before and after patching
+          shell: "sdiff -s {{ path }}/{{ patch_before }}/resolv.conf {{ path }}/{{ patch_after }}/resolv.conf"
+          register: compare_resolve
+        - debug: var=compare_resolve.stdout
+
+      tags: 
+        - POST_COMPARE
+
+        
+
+    
+
