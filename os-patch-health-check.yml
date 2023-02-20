@@ -1,11 +1,12 @@
 ---
 - name: Playbook for Linux OS patching Pre & Post check
-  hosts: all
+  hosts: localhost
   ignore_errors: true
   vars:
     path: /var/backup
     patch_before: "patch_feb_2023_before"
     patch_after: "patch_feb_2023_after"
+    mountname: "/var/"
   become: true
 
   tasks:
@@ -41,9 +42,25 @@
           shell: "netstat -putna > /var/backup/{{ patch_before }}/netstat_putna_output.txt"
         - name: Take a backeup of fstab file
           shell: "cp -p /etc/fstab /var/backup/{{ patch_before }}/fstab"
+      
+        - name: "Ensure that free space on home is grater than 20%"
+          assert:
+            that: item.size_available > item.size_total|float * 0.2
+            success_msg: "Free space on {{ mountname }} is greater than 20%"
+            fail_msg: "Free space on {{ mountname }} is less than 20%"
+          when: item.mount == mountname
+          with_items: "{{ ansible_mounts }}"
+          register: freespcinfo
+          
+         - name: "Check total and free memory on server"
+           debug:
+             msg: "Total memory is {{ ansible_memtotal_mb }} MB"
+         - debug:
+             msg: "Free real memory is {{ ansible_memfree_mb }} MB"
       tags: 
         - PRE_BACKUP
     
+
     - name: POST-CHECK -- Backup of all the important config files After patching.
       block:
         - name: Create backup directory on remote node.
@@ -134,12 +151,5 @@
           debug:
             msg: "resolve.conf info not matching before and after OS-Patching, Kindly verify..."
           when: compare_resolve.rc != 0
-
-
       tags: 
         - POST_COMPARE
-
-        
-
-    
-
