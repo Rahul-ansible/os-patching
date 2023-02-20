@@ -52,11 +52,11 @@
           with_items: "{{ ansible_mounts }}"
           register: freespcinfo
           
-         - name: "Check total and free memory on server"
-           debug:
-             msg: "Total memory is {{ ansible_memtotal_mb }} MB"
-         - debug:
-             msg: "Free real memory is {{ ansible_memfree_mb }} MB"
+        - name: "Check total and free memory on server"
+          debug:
+            msg: "Total memory is {{ ansible_memtotal_mb }} MB"
+        - debug:
+            msg: "Free real memory is {{ ansible_memfree_mb }} MB"
       tags: 
         - PRE_BACKUP
     
