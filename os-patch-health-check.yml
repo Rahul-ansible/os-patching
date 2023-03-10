@@ -6,7 +6,8 @@
     path: /var/backup
     patch_before: "patch_feb_2023_before"
     patch_after: "patch_feb_2023_after"
-    mountname: "/var/"
+    mount1: "/var/"
+    mount2: "/tmp/"
   become: true
 
   tasks:
@@ -41,15 +42,24 @@
         - name: Take a backeup of fstab file
           shell: "cp -p /etc/fstab /var/backup/{{ patch_before }}/fstab"
       
-        - name: "Ensure that free space on home is grater than 20%"
+        - name: "Ensure that free space on {{ mount1 }} is greater than 20%"
           assert:
             that: item.size_available > item.size_total|float * 0.2
-            success_msg: "Free space on {{ mountname }} is greater than 20%"
-            fail_msg: "Free space on {{ mountname }} is less than 20%"
-          when: item.mount == mountname
+            success_msg: "Free space on {{ mount1 }} is greater than 20%"
+            fail_msg: "Free space on {{ mount1 }} is less than 20%"
+          when: item.mount == mount1
           with_items: "{{ ansible_mounts }}"
-          register: freespcinfo
-          
+          register: freespace1
+  
+        - name: "Ensure that free space on {{ mount2 }} is greater than 20%"
+          assert:
+            that: item.size_available > item.size_total|float * 0.2
+            success_msg: "Free space on {{ mount2 }} is greater than 20%"
+            fail_msg: "Free space on {{ mount2 }} is less than 20%"
+          when: item.mount == mount2
+          with_items: "{{ ansible_mounts }}"
+          register: freespace2
+	  
         - name: "Check total and free memory on server"
           debug:
             msg: 
