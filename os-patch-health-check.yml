@@ -17,8 +17,6 @@
           register: backup_dir
         - name: Take a Backup of uname -a
           shell: "uname -a > /var/backup/{{ patch_before }}/uname_a_output.txt"
-          args:
-            executable: /bin/bash
           register: uname
         - name: Take a backup of redhat-release 
           shell: "cp -p /etc/redhat-release /var/backup/{{ patch_before }}/"
