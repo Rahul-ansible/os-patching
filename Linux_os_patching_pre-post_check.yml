@@ -1,0 +1,209 @@
+---
+    - name: Playbook for Linux OS patching Pre & Post check
+      hosts: all
+      ignore_errors: true
+      vars:
+        path: /var/backup
+        patch_before: "patch_feb_2023_before"
+        patch_after: "patch_feb_2023_after"
+        mount1: "/var/"
+        mount2: "/tmp/"
+      become: true
+    
+      tasks:
+        - name: PRE-CHECK -- Backup of all the important config files before patching
+          block:
+            - name: Create backup directory on remote node.
+              file:
+                path: "{{ path }}/{{ patch_before }}"
+                state: directory  
+              register: pre_backup_dir
+  
+            - name: Take a Backup of uname -a
+              shell: "uname -a > /var/backup/{{ patch_before }}/uname_a_output.txt"
+              register: uname
+            - name: Take a backup of redhat-release 
+              shell: "cp -p /etc/redhat-release /var/backup/{{ patch_before }}/"
+              register: pre_os_release
+            - name: Take a backup of /etc/hosts
+              shell: "cp -p /etc/hosts /var/backup/{{ patch_before }}/"
+              register: pre_etc_hosts
+            - name: Take a backe up of resolve.conf
+              shell: "cp -p /etc/resolv.conf /var/backup/{{ patch_before }}/"
+            - name: Take a backup of ifconfig
+              shell: "ifconfig -a > /var/backup/{{ patch_before }}/ifconfig_a_output.txt"
+            - name: Take a backup of network routes (netstat -nr)
+              shell: "netstat -nr > /var/backup/{{ patch_before }}/netstat_nr_output.txt"
+            - name: Take a backup of df -h 
+              shell: "df -h > /var/backup/{{ patch_before }}/df_h_output.txt"
+            - name: Take a backup of installed packages (rpm -qa)
+              shell: "rpm -qa > /var/backup/{{ patch_before }}/rpm_qa_output.txt"
+            - name: Take a backup of running processes (ps -ef)
+              shell: "ps -ef > /var/backup/{{ patch_before }}/ps_ef_output.txt"
+            - name: Take a backup network procols (netstat -putna)
+              shell: "netstat -putna > /var/backup/{{ patch_before }}/netstat_putna_output.txt"
+            - name: Take a backeup of fstab file
+              shell: "cp -p /etc/fstab /var/backup/{{ patch_before }}/fstab"
+          
+            - name: "Ensure that free space on {{ mount1 }} is greater than 20%"
+              assert:
+                that: item.size_available > item.size_total|float * 0.2
+                success_msg: "Free space on {{ mount1 }} is greater than 20%"
+                fail_msg: "Free space on {{ mount1 }} is less than 20%"
+              when: item.mount == mount1
+              with_items: "{{ ansible_mounts }}"
+              register: freespace1
+      
+            - name: "Ensure that free space on {{ mount2 }} is greater than 20%"
+              assert:
+                that: item.size_available > item.size_total|float * 0.2
+                success_msg: "Free space on {{ mount2 }} is greater than 20%"
+                fail_msg: "Free space on {{ mount2 }} is less than 20%"
+              when: item.mount == mount2
+              with_items: "{{ ansible_mounts }}"
+              register: freespace2
+    
+            - name: "Check total and free memory on server"
+              debug:
+                msg: 
+                  - "Total memory is {{ ansible_memtotal_mb }} MB"
+                  - "Free real memory is {{ ansible_memfree_mb }} MB"
+    
+            - name: Get CPU usage 
+              shell: "top -b -n 1" 
+              register: top 
+    
+            - name: Set CPU usage facts 
+              set_fact: 
+                user_cpu: "{{top.stdout_lines[2].split()[1]}}" 
+                system_cpu: "{{top.stdout_lines[2].split()[3]}}" 
+     
+            - name: Output CPU usage facts 
+              debug: 
+                msg: 
+                  - "User CPU usage: {{user_cpu}}" 
+                  - "System CPU usage: {{system_cpu}}" 
+          tags: 
+            - PRE_BACKUP
+        
+    
+        - name: POST-CHECK -- Backup of all the important config files After patching.
+          block:
+            - name: Create backup directory on remote node.
+              file:
+                path: "{{ path }}/{{ patch_after }}"
+                state: directory  
+              register: pre_backup_dir
+
+            - name: Take a Backup of uname -a
+              shell: "uname -a > /var/backup/{{ patch_after }}/uname_a_output.txt"
+              register: psot_uname
+            - name: Take a backup of redhat-release 
+              shell: "cp -p /etc/redhat-release /var/backup/{{ patch_after }}/"
+              register: post_os_release
+            - name: Take a backup of /etc/hosts
+              shell: "cp -p /etc/hosts /var/backup/{{ patch_after }}/"
+              register: post_etc_hosts
+    
+            - name: Take a backe up of resolve.conf
+              shell: "cp -p /etc/resolv.conf /var/backup/{{ patch_after }}/"
+            - name: Take a backup of ifconfig
+              shell: "ifconfig -a > /var/backup/{{ patch_after }}/ifconfig_a_output.txt"
+            - name: Take a backup of network routes (netstat -nr)
+              shell: "netstat -nr > /var/backup/{{ patch_after }}/netstat_nr_output.txt"
+            - name: Take a backup of df -h 
+              shell: "df -h > /var/backup/{{ patch_after }}/df_h_output.txt"
+            - name: Take a backup of installed packages (rpm -qa)
+              shell: "rpm -qa > /var/backup/{{ patch_after }}/rpm_qa_output.txt"
+            - name: Take a backup of running processes (ps -ef)
+              shell: "ps -ef > /var/backup/{{ patch_after }}/ps_ef_output.txt"
+            - name: Take a backup network procols (netstat -putna)
+              shell: "netstat -putna > /var/backup/{{ patch_after }}/netstat_putna_output.txt"
+            - name: Take a backeup of fstab file
+              shell: "cp -p /etc/fstab /var/backup/{{ patch_after }}/"
+          tags: 
+            - POST_BACKUP
+    
+        - name: Validation of Pre & post config files
+          block:  
+            - name: Check Kernel version after Patching
+              shell: "uname -r"
+              register: post_kernel_v
+            - debug: var=post_kernel_v.stdout
+            
+            - name: Compare df-h before and after patching
+              copy:
+                src: "{{ path }}/{{ patch_before }}/df_h_output.txt"
+                dest: "{{ path }}/{{ patch_after }}/df_h_output.txt"
+              check_mode: yes
+              diff: yes
+              register: compare_df_h
+            - debug: var=compare_df_h.stdout
+
+            - name: Compare ifconfig before and after patching
+              copy:
+                src: "{{ path }}/{{ patch_before }}/ifconfig_a_output.txt"
+                dest: " {{ path }}/{{ patch_after }}/ifconfig_a_output.txt"
+              check_mode: yes
+              diff: yes
+              remote_src: true
+              register: compare_ifconfig
+            - debug: var=compare_ifconfig.stdout
+            
+            - name: Compare hosts file before and after patching
+              copy:
+                src: "sdiff -s {{ path }}/{{ patch_before }}/hosts"
+                dest: " {{ path }}/{{ patch_after }}/hosts"
+              check_mode: yes
+              diff: yes
+              register: compare_hosts
+            - debug: var=compare_hosts.stdout
+    
+            - name: Display message if the /etc/host file not matching
+              debug:
+                msg: "/etc/hosts file is not matching before and after OS-Patching, Kindly verify..."
+              when: compare_hosts.rc != 0
+    
+            - name: Compare fstab config before and after patching
+              copy:
+                src: "sdiff -s {{ path }}/{{ patch_before }}/fstab"
+                dest: " {{ path }}/{{ patch_after }}/fstab"
+              check_mode: yes
+              diff: yes
+              register: compare_fstab
+            - debug: var=compare_fstab.stdout
+    
+            - name: "Display message if fstab config  not matching before and after pathing"
+              debug:
+                msg: "fstab file is not matching before and after OS-Patching, Kindly verify..."
+              when: compare_fstab.rc != 0
+    
+            - name: Compare netstat config before and after patching
+              copy:
+                src: "sdiff -s {{ path }}/{{ patch_before }}/netstat_nr_output.txt"
+                dest: " {{ path }}/{{ patch_after }}/netstat_nr_output.txt"
+              check_mode: yes
+              diff: yes            
+              register: compare_netstat
+            - debug: var=compare_netstat.stdout
+    
+            - name: Display message if the netstat  not matching
+              debug:
+                msg: "netstat info not matching before and after OS-Patching, Kindly verify..."
+              when: compare_netstat.rc != 0
+    
+            - name: Compare  resolve.conf before and after patching
+              copy:
+                src: "sdiff -s {{ path }}/{{ patch_before }}/resolv.conf"
+                dest: " {{ path }}/{{ patch_after }}/resolv.conf"
+              check_mode: yes
+              diff: yes 
+              register: compare_resolve
+            - debug: var=compare_resolve.stdout
+    
+            - name: Display message if the resolve.conf  not matching
+              debug:
+                msg: "resolve.conf info not matching before and after OS-Patching, Kindly verify..."
+              when: compare_resolve.rc != 0
+          tags: 
+            - POST_COMPARE
