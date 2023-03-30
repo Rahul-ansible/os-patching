@@ -6,7 +6,7 @@
       group:
         name: ansible
         state: present
-        
+
     - name: create user
       user:
         name: ansible
@@ -14,18 +14,18 @@
         password: ansible
         state: present
         group: ansible
-          
-     - name: add entry in sudoers for passwordless login
-       lineinfile:
-         dest: /etc/sudoers
-         state: present
-         regexp: '^%wheel'
-         line: '%wheel ALL=(ALL) NOPASSWD: ALL'
-         validate: 'visudo -cf %s'
-     - name: add user ansible in wheel group
-       user:
-          name: ansible
-          groups: wheel
-          append: yes
-          state: present
-          createhome: yes
+
+    - name: add entry in sudoers for passwordless login
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+    - name: add user ansible in wheel group
+      user:
+        name: ansible
+        groups: wheel
+        append: yes
+        state: present
+        createhome: yes
